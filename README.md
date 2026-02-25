@@ -1,8 +1,8 @@
-# quantitative_investing
 
-# Brazilian Value Factor Construction (HML)
 
-## Overview
+## Brazilian Value Factor Construction (HML)
+
+### Overview
 
 This repository implements the construction and empirical evaluation of
 a **Value (High Minus Low, HML-style) factor** for the Brazilian equity
@@ -24,13 +24,13 @@ adjustments appropriate for emerging market data.
 
 All data are obtained via **WRDS Datastream**.
 
-### Equity Data
+#### Equity Data
 
 -   Market capitalization
 -   Book equity
 -   Monthly returns
 
-### Market Benchmarks
+#### Market Benchmarks
 
 -   **BRBOVES** (Bovespa / Ibovespa index)
 -   **BRIBXIN** (IBrX-100 index)
@@ -40,9 +40,9 @@ MSCI Brazil was not available due to licensing restrictions.
 
 ------------------------------------------------------------------------
 
-## Methodology
+### Methodology
 
-### 1. Timing Convention
+#### 1. Timing Convention
 
 Portfolios are formed annually in **June of year t** and held from:
 
@@ -53,7 +53,7 @@ available - Consistency with Fama--French timing conventions
 
 ------------------------------------------------------------------------
 
-### 2. Double Sorting Procedure
+#### 2. Double Sorting Procedure
 
 Each June:
 
@@ -75,7 +75,7 @@ This produces six portfolios:
 
 ------------------------------------------------------------------------
 
-### 3. Factor Construction
+#### 3. Factor Construction
 
 HML = 1/2 (SH + BH) − 1/2 (SL + BL)
 
@@ -89,7 +89,7 @@ Portfolios are value-weighted.
 
 ------------------------------------------------------------------------
 
-## Emerging Market Adjustments
+### Emerging Market Adjustments
 
 During crisis periods (e.g., 2015–2016), book-to-market (B/M) distributions become heavily right-skewed.
 
@@ -106,7 +106,7 @@ These steps improve portfolio balance, enhance stability of factor loadings, and
 
 ------------------------------------------------------------------------
 
-## Empirical Results
+### Empirical Results
 
 The constructed value factor delivers economically meaningful performance:
 
@@ -134,7 +134,7 @@ r_HML,t = α + β r_Market,t + ε_t
 
 ------------------------------------------------------------------------
 
-## Files
+### Files
 
 - `value.ipynb` — Full construction pipeline
   - Data cleaning  
@@ -151,7 +151,7 @@ r_HML,t = α + β r_Market,t + ε_t
     
 ------------------------------------------------------------------------
 
-## Reproducibility
+### Reproducibility
 
 To reproduce results:
 
@@ -162,7 +162,7 @@ To reproduce results:
 
 ------------------------------------------------------------------------
 
-## Future Extensions
+### Future Extensions
 
 - Extend the framework to a multi-factor model by incorporating profitability and investment characteristics  
 - Explicitly orthogonalize value relative to size and other risk factors  
