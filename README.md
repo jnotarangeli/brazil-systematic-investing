@@ -26,15 +26,17 @@ All data are obtained via **WRDS Datastream**.
 
 #### Equity Data
 
--   Market capitalization
--   Book equity
--   Monthly returns
+- Market capitalization  
+- Book equity  
+- Monthly returns  
+
+Firm-level accounting and market variables are constructed using the `brazil_fundamentals.ipynb` pipeline, which generates the cleaned fundamentals dataset used in portfolio formation. This script aligns accounting data with market data using June formation conventions and ensures point-in-time consistency.
 
 #### Market Benchmarks
 
--   **BRBOVES** (Bovespa / Ibovespa index)
--   **BRIBXIN** (IBrX-100 index)
--   BRIBX50 (robustness check)
+- **BRBOVES** (Bovespa / Ibovespa index)  
+- **BRIBXIN** (IBrX-100 index)  
+- BRIBX50 (robustness check)  
 
 MSCI Brazil was not available due to licensing restrictions.
 
