@@ -1,175 +1,67 @@
+# brazil-systematic-investing
 
+Construction and empirical evaluation of a Fama-French style value factor (HML) for the Brazilian equity market. The pipeline builds a monthly panel of Brazilian equities from WRDS Compustat Global and Datastream, applies the standard double-sort methodology with emerging-market adjustments, and evaluates the factor against Brazilian market benchmarks.
 
-## Brazilian Value Factor Construction (HML)
+## Research Hypothesis
 
-### Overview
-
-This repository implements the construction and empirical evaluation of
-a **Value (High Minus Low, HML-style) factor** for the Brazilian equity
-market using WRDS Datastream data.
-
-The objective is to:
-
--   Construct size and book-to-market sorted portfolios
--   Form a long-short value portfolio
--   Evaluate its performance and robustness
--   Test market exposure via regression against Brazilian equity indices
-
-This project follows the Fama-French (1993) methodology with
-adjustments appropriate for emerging market data.
-
-------------------------------------------------------------------------
+The value premium documented in the US (Fama & French 1993) should persist in emerging markets, but standard implementation requires adjustments for data sparsity, crisis-period B/M instability, and the thinner cross-section of Brazilian equities. Size-conditional B/M breakpoints and mild winsorization produce a more stable factor that captures persistent cross-sectional value effects rather than distressed small-cap exposure.
 
 ## Data Sources
 
-All data are obtained via **WRDS Datastream**.
+All raw data files are stored locally and excluded from version control.
 
-#### Equity Data
+| Source | WRDS Table / Dataset | Description |
+|---|---|---|
+| Compustat Global | `comp.g_funda` (annual) | Book equity and fundamentals for Brazilian firms (2000–2025) |
+| WRDS Datastream | Datastream monthly via WRDS | Monthly returns, prices, market cap |
+| Compustat Global Security | `comp.g_security` | ISIN bridge table linking Compustat gvkeys to Datastream securities |
+| Brazilian Benchmarks | BRBOVES (Ibovespa), BRIBXIN (IBrX-100) | Market return benchmarks for factor regressions |
 
-- Market capitalization  
-- Book equity  
-- Monthly returns  
+## Pipeline Overview
 
-Firm-level accounting and market variables are constructed using the `brazil_fundamentals.ipynb` pipeline, which generates the cleaned fundamentals dataset used in portfolio formation. This script aligns accounting data with market data using June formation conventions and ensures point-in-time consistency.
+### `brazil_fundamentals.ipynb` — Data Construction (run first)
+1. Pull annual fundamentals from Compustat Global (2000–2025)
+2. Pull monthly returns, prices, and market cap from WRDS Datastream — restricted to firms with a Compustat record via `comp.g_security` ISIN bridge
+3. Merge via ISIN with point-in-time alignment (6-month accounting lag)
+4. Compute 24 fundamental characteristics and 9 market-scaled characteristics
+5. Drop variables with >50% missing (`rd_me`, `rd_sale`, `emp_gr1`)
+6. Save cleaned panel to `data/brazil_fundamental_panel.parquet`
 
-#### Market Benchmarks
+### `value.ipynb` — HML Factor Construction & Evaluation
+1. **Data Loading** — Load cleaned fundamentals panel
+2. **June Rebalancing** — Each June, snapshot the most recent B/M and market equity per firm
+3. **Double Sort:**
+   - Split firms into Small / Big on the size median
+   - Within each size group, compute B/M 30th/70th percentiles (size-conditional breakpoints)
+   - Form six value-weighted portfolios: SL, SM, SH, BL, BM, BH
+4. **HML Construction:** `HML = ½(SH + BH) − ½(SL + BL)`; held July(t) → June(t+1)
+5. **Emerging Market Adjustments:** B/M winsorization; minimum portfolio size constraint; size-conditional breakpoints to prevent the factor from collapsing into distressed small-cap exposure during crises
+6. **Performance Evaluation:** Annualized return, volatility, Sharpe ratio; cumulative return chart
+7. **Factor Regressions:** `r_HML,t = α + β·r_Market,t + ε_t` vs. Ibovespa and IBrX-100
 
-- **BRBOVES** (Bovespa / Ibovespa index)  
-- **BRIBXIN** (IBrX-100 index)  
-- BRIBX50 (robustness check)  
+## Key Results
 
-MSCI Brazil was not available due to licensing restrictions.
+| Strategy | Ann. Return | Ann. Vol | Sharpe | Terminal $1 |
+|---|---|---|---|---|
+| Ibovespa | 14.1% | 22.8% | 0.62 | $14.5 |
+| HML (Long–Short) | 8.4% | 13.4% | 0.63 | $5.8 |
+| Ibovespa + HML | 22.5% | 25.6% | 0.88 | $88.8 |
 
-------------------------------------------------------------------------
+The HML factor achieves a Sharpe ratio comparable to the market with materially lower volatility. Its low correlation with the Ibovespa contributes meaningful diversification: combining the two raises the portfolio Sharpe from 0.62 to 0.88.
 
-### Methodology
+## Requirements
 
-#### 1. Timing Convention
+- **WRDS account** with access to Compustat Global and Datastream
+- Python 3.9+
+- Key packages: `pandas`, `numpy`, `matplotlib`, `wrds`, `sqlalchemy`
 
-Portfolios are formed annually in **June of year t** and held from:
+## How to Run
 
-July t → June t+1
+1. Ensure WRDS credentials are configured (`~/.pgpass` or environment variables)
+2. Run `brazil_fundamentals.ipynb` to build the firm-level panel (run once; output cached locally)
+3. Run `value.ipynb` end-to-end for factor construction, performance evaluation, and regressions
 
-This ensures: - No look-ahead bias - Accounting data are publicly
-available - Consistency with Fama--French timing conventions
+## References
 
-------------------------------------------------------------------------
-
-#### 2. Double Sorting Procedure
-
-Each June:
-
-1.  **Size Sort**
-    -   Split firms into Small (S) and Big (B)
-    -   Breakpoint: median market capitalization
-2.  **Book-to-Market Sort**
-    -   Within each size group, sort into:
-        -   Low (L) --- bottom 30%
-        -   Medium (M) --- middle 40%
-        -   High (H) --- top 30%
-
-This produces six portfolios:
-
-          Low   Med   High
-  ------- ----- ----- ------
-  Small   SL    SM    SH
-  Big     BL    BM    BH
-
-------------------------------------------------------------------------
-
-#### 3. Factor Construction
-
-HML = 1/2 (SH + BH) − 1/2 (SL + BL)
-
-The factor is:
-
--   Long high book-to-market stocks
--   Short low book-to-market stocks
--   Neutral with respect to size
-
-Portfolios are value-weighted.
-
-------------------------------------------------------------------------
-
-### Emerging Market Adjustments
-
-During crisis periods (e.g., 2015–2016), book-to-market (B/M) distributions become heavily right-skewed.
-
-To address this instability, the following adjustments were implemented:
-
-- Mild winsorization applied to B/M ratios to reduce extreme right-tail influence  
-- Minimum portfolio size constraint enforced to avoid thin long–short legs  
-- Size-conditional breakpoints: B/M breakpoints are computed separately within Small and Big size groups rather than on the pooled cross-section  
-- Sensitivity checks performed using alternative breakpoint definitions  
-
-The size-conditional sorting ensures that value variation is measured *within* size categories, preventing the value factor from mechanically becoming a distressed small-cap factor during crisis episodes.
-
-These steps improve portfolio balance, enhance stability of factor loadings, and reduce distortion of the long–short value signal.
-
-------------------------------------------------------------------------
-
-### Empirical Results
-
-The constructed value factor delivers economically meaningful performance:
-
-| Strategy              | Ann Return | Ann Vol | Sharpe | Terminal $1 |
-|-----------------------|-----------|---------|--------|-------------|
-| Ibovespa              | 14.1%     | 22.8%   | 0.62   | $14.5       |
-| HML (Long–Short)      | 8.4%      | 13.4%   | 0.63   | $5.8        |
-| Ibovespa + HML        | 22.5%     | 25.6%   | 0.88   | $88.8       |
-
-Key observations:
-
-- The standalone HML factor achieves a Sharpe ratio of 0.63, comparable to the market, with materially lower volatility.
-- The factor exhibits low correlation with the Ibovespa, contributing diversification benefits.
-- Combining the value factor with the market portfolio increases the Sharpe ratio to **0.88**, substantially improving risk-adjusted returns.
-- Performance remains stable across subperiods, including crisis episodes.
-
-The results suggest that the strategy captures persistent cross-sectional value effects rather than simple exposure to broad market risk.
-Regression results:
-
-r_HML,t = α + β r_Market,t + ε_t
-
--   Market beta estimated against BRBOVES and IBrX-100
--   Positive and economically meaningful alpha
--   Moderate market exposure during crisis periods
-
-------------------------------------------------------------------------
-
-### Files
-
-- `value.ipynb` — Full construction pipeline
-  - Data cleaning  
-  - Breakpoint computation  
-  - Portfolio formation  
-  - Factor construction  
-  - Performance evaluation  
-  - Regression analysis  
-
-- `brazil_characteristics.csv` — Processed firm-level dataset used in factor construction  
-  - Contains size, book-to-market, and return variables  
-  - Cleaned and aligned to June portfolio formation dates  
-  - Serves as the intermediate dataset linking raw Datastream inputs to portfolio outputs
-    
-------------------------------------------------------------------------
-
-### Reproducibility
-
-To reproduce results:
-
-1.  Ensure WRDS connection via `wrds` Python package
-2.  Confirm access to Datastream library
-3.  Update WRDS credentials
-4.  Run notebook from top to bottom
-
-------------------------------------------------------------------------
-
-### Future Extensions
-
-- Extend the framework to a multi-factor model by incorporating profitability and investment characteristics  
-- Explicitly orthogonalize value relative to size and other risk factors  
-- Implement rolling or adaptive breakpoints to account for structural market shifts  
-- Evaluate interaction effects with macroeconomic variables and crisis regimes  
-- Benchmark performance against international value indices and global factor models  
-- Explore advanced portfolio construction techniques 
-- Incorporate machine learning methods for feature selection and signal combination
+- Fama, E. F., & French, K. R. (1993). Common Risk Factors in the Returns on Stocks and Bonds. *Journal of Financial Economics*, 33(1), 3–56.
+- Jensen, T. I., Kelly, B. T., & Pedersen, L. H. (2023). Is There a Replication Crisis in Finance? *Journal of Finance*, 78(5), 2465–2518.
